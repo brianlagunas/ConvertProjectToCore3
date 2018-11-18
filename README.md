@@ -1,6 +1,8 @@
 # Convert a .NET Framework Project To .NET Core 3
 This Visual Studio Extension converts a WPF application built with the .NET Framework to a .NET Core 3 application.
 
+Install the extension from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=BrianLagunas.ConvertProjectToNETCore3)
+
 # Usage
 Simply right-click your WPF project and select the "Convert Project to .NET Core 3" option.
 
