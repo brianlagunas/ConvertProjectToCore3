@@ -55,9 +55,11 @@
           If you do not want an image next to your command, remove the Icon node /> -->
       <Button guid="guidConvertAppToCore3CommandPackageCmdSet" id="ConvertAppToCore3CommandId" priority="0x0100" type="Button">
         <Parent guid="guidConvertAppToCore3CommandPackageCmdSet" id="ConvertAppToCore3Group" />
-        <Icon guid="guidImages" id="bmpPic1" />
+        <!-- <Icon guid="guidImages" id="bmpPic1" /> -->
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
         <Strings>
-          <ButtonText>Invoke ConvertAppToCore3Command</ButtonText>
+          <ButtonText>Convert Project to .NET Core 3</ButtonText>
         </Strings>
       </Button>
     </Buttons>

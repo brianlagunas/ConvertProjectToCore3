@@ -1,11 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.Design;
-using System.Globalization;
 using System.IO;
-using System.Threading;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Xml;
 using EnvDTE;
+using Microsoft.Build.Construction;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Flavor;
 using Microsoft.VisualStudio.Shell.Interop;
 using Task = System.Threading.Tasks.Task;
 
@@ -26,6 +31,8 @@ namespace ConvertProjectToCore3
         /// </summary>
         public static readonly Guid CommandSet = new Guid("9f281125-01d6-41e6-ba9f-c4be22d0984c");
 
+        private readonly DTE _dte;
+
         /// <summary>
         /// VS Package that provides this command, not null.
         /// </summary>
@@ -43,8 +50,39 @@ namespace ConvertProjectToCore3
             commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
             var menuCommandID = new CommandID(CommandSet, CommandId);
-            var menuItem = new MenuCommand(this.Execute, menuCommandID);
+            var menuItem = new OleMenuCommand(this.Execute, menuCommandID);
+            menuItem.BeforeQueryStatus += MenuItem_BeforeQueryStatus;
             commandService.AddCommand(menuItem);
+        }
+
+        private void MenuItem_BeforeQueryStatus(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            
+            var menuCommand = sender as OleMenuCommand;
+            if (menuCommand != null)
+            {
+                menuCommand.Visible = false;
+                menuCommand.Enabled = false;
+
+                Project selectedProject = GetSelectedProject();
+                IVsSolution solution = (IVsSolution)Package.GetGlobalService(typeof(SVsSolution));
+
+                IVsHierarchy hierarchy;
+                solution.GetProjectOfUniqueName(selectedProject.UniqueName, out hierarchy);
+
+                IVsAggregatableProjectCorrected ap;
+                ap = hierarchy as IVsAggregatableProjectCorrected;
+
+                string projTypeGuids;
+                ap.GetAggregateProjectTypeGuids(out projTypeGuids);
+
+                if (projTypeGuids.ToUpper().IndexOf(Constants.WpfProjectGuidString) > 0)
+                {
+                    menuCommand.Visible = true;
+                    menuCommand.Enabled = true;
+                }
+            }
         }
 
         /// <summary>
@@ -93,44 +131,178 @@ namespace ConvertProjectToCore3
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             string title = "Convert Project To .NET Core 3";
-            string message = string.Format(CultureInfo.CurrentCulture, "Are you sure you want to convert this project to .NET Core 3?", this.GetType().FullName);
+            string message = "Are you sure you want to convert this project to .NET Core 3?";
 
-            // Show a message box to prove we were here
             var result = VsShellUtilities.ShowMessageBox(this.package, message, title, OLEMSGICON.OLEMSGICON_INFO, OLEMSGBUTTON.OLEMSGBUTTON_OKCANCEL, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 
             if (result == 1)
             {
-                DTE dte = await ServiceProvider.GetServiceAsync(typeof(DTE)) as DTE;
-                object[] activeSolutionProjects = dte.ActiveSolutionProjects as object[];
-                Project activeProject = null;
-
-                if (activeSolutionProjects != null)
+                try
                 {
-                    foreach (object activeSolutionProject in activeSolutionProjects)
-                    {
-                        activeProject = activeSolutionProject as Project;
-
-                        if (activeProject != null)
-                        {
-                            break;
-                        }
-                    }
+                    Project activeProject = GetSelectedProject();
+                    await ConvertProjectAsync(activeProject);
                 }
-
-                ConvertProject(activeProject);
+                catch (Exception ex)
+                {
+                    VsShellUtilities.ShowMessageBox(this.package, ex.Message, title, OLEMSGICON.OLEMSGICON_INFO, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+                }
             }
         }
 
-        void ConvertProject(Project project)
+        Project GetSelectedProject()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+            Project activeProject = null;
+            DTE dte = (DTE)Package.GetGlobalService(typeof(DTE));
+            object[] activeSolutionProjects = dte.ActiveSolutionProjects as object[];
+            if (activeSolutionProjects != null)
+            {
+                activeProject = activeSolutionProjects.GetValue(0) as Project;
+            }
+            return activeProject;
+        }
 
-            string projectFullName = project.FullName;
-            var projectFilePath = Path.GetDirectoryName(projectFullName);
+        async Task ConvertProjectAsync(Project project)
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            IVsSolution4 solution = await ServiceProvider.GetServiceAsync(typeof(SVsSolution)) as IVsSolution4;
 
-            var assemblyVersion = project.Properties.Item("AssemblyVersion")?.Value.ToString();
+            ProjectRootElement projectRoot = ProjectRootElement.Open(project.FullName);
 
-            
+            var projectData = ReadProjectData(projectRoot);
+            projectData.FilePath = Path.GetDirectoryName(project.FullName);
+            projectData.AssemblyVersion = project.Properties.Item(Constants.AssemblyVersion)?.Value.ToString();
+
+            UnloadProject(solution, projectData.ProjectGuid);
+
+            DeleteCSProjContents(projectRoot);
+
+            UpdateCSProjContents(projectRoot, projectData);
+
+            projectRoot.Save();
+
+            UpdateAssemblyInfo(projectData.FilePath);
+
+            ReloadProject(solution, projectData.ProjectGuid);
+        }
+
+        ProjectData ReadProjectData(ProjectRootElement projectRoot)
+        {
+            var projectData = new ProjectData();
+            var propertyGroup = projectRoot.PropertyGroups.First();
+            projectData.ProjectGuid = Guid.Parse(propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.ProjectGuid)?.Value.ToString());
+            projectData.ProjectTypeGuids = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.ProjectTypeGuids)?.Value.ToString();
+            projectData.AssemblyName = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.AssemblyName)?.Value.ToString();
+            projectData.OutputType = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.OutputType)?.Value.ToString();
+            projectData.ProjectReferences = projectRoot.Items.Where(x => x.ItemType.Equals(Constants.ProjectReference)).Select(r => r.Include).ToList();
+            projectData.Resources = projectRoot.Items.Where(x => x.ItemType.Equals(Constants.Resource)).Select(r => r.Include).ToList();
+            return projectData;
+        }
+
+        void DeleteCSProjContents(ProjectRootElement projectRoot)
+        {
+            projectRoot.ToolsVersion = null;
+            projectRoot.RemoveAllChildren();
+        }
+
+        void UpdateCSProjContents(ProjectRootElement projectRoot, ProjectData projectData)
+        {
+            projectRoot.Sdk = Constants.Sdk;
+
+            ProjectPropertyGroupElement newPropertyGroup = projectRoot.AddPropertyGroup();
+
+            if (!string.IsNullOrWhiteSpace(projectData.OutputType))
+                newPropertyGroup.AddProperty(Constants.OutputType, projectData.OutputType);
+
+            newPropertyGroup.AddProperty(Constants.TargetFramework, Constants.NetCoreApp3);
+
+            //TODO: check to see if the project type is WPF or WinForms
+            newPropertyGroup.AddProperty(Constants.UseWPF, Constants.True);
+
+            if (!string.IsNullOrWhiteSpace(projectData.AssemblyVersion))
+                newPropertyGroup.AddProperty(Constants.Version, projectData.AssemblyVersion);
+
+            newPropertyGroup.AddProperty(Constants.AssemblyName, projectData.AssemblyName);
+
+            if (projectData.ProjectReferences.Count() > 0)
+            {
+                ProjectItemGroupElement projectRefItemGroup = projectRoot.AddItemGroup();
+                foreach (var projRef in projectData.ProjectReferences)
+                {
+                    projectRefItemGroup.AddItem(Constants.ProjectReference, projRef);
+                }
+            }
+
+            if (projectData.Resources.Count() > 0)
+            {
+                ProjectItemGroupElement resourceItemGroup = projectRoot.AddItemGroup();
+                foreach (var resource in projectData.Resources)
+                {
+                    resourceItemGroup.AddItem(Constants.Resource, resource);
+                }
+            }
+
+            UpdateNuGetPackageReferences(projectRoot, projectData);
+        }
+
+        void UpdateNuGetPackageReferences(ProjectRootElement projectRoot, ProjectData projectData)
+        {
+            var packageConfigFilePath = Path.Combine(projectData.FilePath, Constants.NuGetPackagesConfigFileName);
+            if (File.Exists(packageConfigFilePath))
+            {
+                XmlDocument document = new XmlDocument();
+                document.Load(packageConfigFilePath);
+
+                XmlNodeList packageList = document.GetElementsByTagName("package");
+
+                ProjectItemGroupElement packageRefItemGroup = projectRoot.AddItemGroup();
+                foreach (XmlNode package in packageList)
+                {
+                    var id = package.Attributes["id"].InnerText;
+                    var version = package.Attributes["version"].InnerText;
+                    var item = packageRefItemGroup.AddItem(Constants.PackageReference, id);
+                    item.AddMetadata(Constants.Version, version, true);
+                }
+
+                File.Delete(packageConfigFilePath);
+            }
+        }
+
+        void UpdateAssemblyInfo(string projectFilePath)
+        {
+            String assemblyInfoFilePath = Path.Combine(projectFilePath, Constants.AssemblyInfoFilePath);
+            if (File.Exists(assemblyInfoFilePath))
+            {
+                var assemblyInfoLines = File.ReadLines(assemblyInfoFilePath);
+                var updatedLines = new List<string>();
+                foreach (var line in assemblyInfoLines)
+                {
+                    string newLine = line;
+                    if (newLine.StartsWith(Constants.AssemblyAttributeSearchPattern))
+                    {
+                        newLine = line.Insert(0, Constants.CommentPrefix);
+                    }
+
+                    updatedLines.Add(newLine);
+                }
+                File.WriteAllLines(assemblyInfoFilePath, updatedLines);
+            }
+        }
+
+        void UnloadProject(IVsSolution4 solution, Guid projectGuid)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            int hr;
+            hr = solution.UnloadProject(ref projectGuid, (uint)_VSProjectUnloadStatus.UNLOADSTATUS_UnloadedByUser);
+            ErrorHandler.ThrowOnFailure(hr);
+        }
+
+        void ReloadProject(IVsSolution4 solution, Guid projectGuid)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            int hr;
+            hr = solution.ReloadProject(ref projectGuid);
+            ErrorHandler.ThrowOnFailure(hr);
         }
     }
 }
