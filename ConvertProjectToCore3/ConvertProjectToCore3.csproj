@@ -57,7 +57,6 @@
     <Compile Include="Constants.cs" />
     <Compile Include="ConvertAppToCore3Command.cs" />
     <Compile Include="ConvertAppToCore3CommandPackage.cs" />
-    <Compile Include="Facts.cs" />
     <Compile Include="ProjectData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

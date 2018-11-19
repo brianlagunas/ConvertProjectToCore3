@@ -56,7 +56,7 @@ namespace ConvertProjectToCore3
         private void MenuItem_BeforeQueryStatus(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            
+
             var menuCommand = sender as OleMenuCommand;
             if (menuCommand != null)
             {
@@ -200,6 +200,7 @@ namespace ConvertProjectToCore3
             projectRoot.ToolsVersion = null;
             RemoveImports(projectRoot);
             RemoveProperties(projectRoot);
+            //await RemoveReferences(projectRoot);
             RemoveItems(projectRoot);
         }
 
@@ -211,13 +212,39 @@ namespace ConvertProjectToCore3
             }
         }
 
+        //async Task RemoveReferences(ProjectRootElement root)
+        //{
+        //    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        //    var frameworkMultiTargeting = await ServiceProvider.GetServiceAsync(typeof(SVsFrameworkMultiTargeting)) as IVsFrameworkMultiTargeting;
+
+        //    foreach (var itemGroup in root.ItemGroups)
+        //    {
+        //        foreach (var item in itemGroup.Items)
+        //        {
+        //            if (item.ElementName == Constants.Reference)
+        //            {
+        //                bool isFrameworkReference = false;
+        //                frameworkMultiTargeting.IsReferenceableInTargetFx(item.Include, Constants.NetFramework, out isFrameworkReference);
+
+        //                if (isFrameworkReference)
+        //                    itemGroup.RemoveChild(item);
+        //            }
+        //        }
+
+        //        if (itemGroup.Items.Count == 0)
+        //        {
+        //            root.RemoveChild(itemGroup);
+        //        }
+        //    }
+        //}
+
         void RemoveItems(ProjectRootElement root)
         {
             foreach (var itemGroup in root.ItemGroups)
             {
                 foreach (var item in itemGroup.Items)
                 {
-                    if (Facts.ItemTypesNotNeeded.Contains(item.ElementName))
+                    if (Constants.ItemTypesNotNeeded.Contains(item.ElementName))
                     {
                         itemGroup.RemoveChild(item);
                     }
@@ -236,7 +263,7 @@ namespace ConvertProjectToCore3
             {
                 foreach (var property in propGroup.Properties)
                 {
-                    if (Facts.PropertiesNotNeeded.Contains(property.Name))
+                    if (Constants.PropertiesNotNeeded.Contains(property.Name))
                     {
                         propGroup.RemoveChild(property);
                     }
@@ -251,7 +278,7 @@ namespace ConvertProjectToCore3
 
             propertyGroup.AddProperty(Constants.TargetFramework, Constants.NetCoreApp3);
 
-            //TODO: check to see if the project type is WPF or WinForms
+            //TODO: check to see if the project type is WPF or WinForms.
             propertyGroup.AddProperty(Constants.UseWPF, Constants.True);
 
             if (!string.IsNullOrWhiteSpace(projectData.AssemblyVersion))
