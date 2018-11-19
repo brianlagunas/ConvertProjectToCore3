@@ -57,6 +57,7 @@
     <Compile Include="Constants.cs" />
     <Compile Include="ConvertAppToCore3Command.cs" />
     <Compile Include="ConvertAppToCore3CommandPackage.cs" />
+    <Compile Include="Facts.cs" />
     <Compile Include="ProjectData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -201,6 +202,7 @@
     <Content Include="Resources\ConvertAppToCore3Command.png" />
     <Content Include="Resources\ConvertAppToCore3CommandPackage.ico" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
   <Import Project="..\packages\Microsoft.VisualStudio.SDK.EmbedInteropTypes.15.0.10\build\Microsoft.VisualStudio.SDK.EmbedInteropTypes.targets" Condition="Exists('..\packages\Microsoft.VisualStudio.SDK.EmbedInteropTypes.15.0.10\build\Microsoft.VisualStudio.SDK.EmbedInteropTypes.targets')" />

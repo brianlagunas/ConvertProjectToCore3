@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="ConvertProjectToCore3.f4342868-5906-4159-80df-88a359b780c3" Version="1.0.1" Language="en-US" Publisher="Brian Lagunas" />
+        <Identity Id="ConvertProjectToCore3.f4342868-5906-4159-80df-88a359b780c3" Version="1.0.2" Language="en-US" Publisher="Brian Lagunas" />
         <DisplayName>Convert Project To .NET Core 3</DisplayName>
         <Description xml:space="preserve">This extension converts a WPF application from the .NET Framework to .NET Core 3.</Description>
         <MoreInfo>https://github.com/brianlagunas/ConvertProjectToCore3</MoreInfo>
