@@ -195,6 +195,14 @@ namespace ConvertProjectToCore3
             return projectData;
         }
 
+        void DeleteCSProjContents(ProjectRootElement projectRoot)
+        {
+            projectRoot.ToolsVersion = null;
+            RemoveImports(projectRoot);
+            RemoveProperties(projectRoot);
+            RemoveItems(projectRoot);
+        }
+
         void RemoveImports(ProjectRootElement root)
         {
             foreach (var import in root.Imports)
@@ -222,7 +230,7 @@ namespace ConvertProjectToCore3
             }
         }
 
-        static void RemoveDefaultedProperties(ProjectRootElement root)
+        static void RemoveProperties(ProjectRootElement root)
         {
             foreach (var propGroup in root.PropertyGroups)
             {
@@ -234,14 +242,6 @@ namespace ConvertProjectToCore3
                     }
                 }
             }
-        }
-
-        void DeleteCSProjContents(ProjectRootElement projectRoot)
-        {
-            projectRoot.ToolsVersion = null;
-            RemoveImports(projectRoot);
-            RemoveDefaultedProperties(projectRoot);
-            RemoveItems(projectRoot);
         }
 
         void UpdateCSProjContents(ProjectRootElement projectRoot, ProjectData projectData)
