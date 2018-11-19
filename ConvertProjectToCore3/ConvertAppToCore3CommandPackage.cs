@@ -38,6 +38,7 @@ namespace ConvertProjectToCore3
     [Guid(ConvertAppToCore3CommandPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
+    //[ProvideBindingPath]
     public sealed class ConvertAppToCore3CommandPackage : AsyncPackage
     {
         /// <summary>

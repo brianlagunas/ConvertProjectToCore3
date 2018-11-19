@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Xml;
 using EnvDTE;
 using Microsoft.Build.Construction;
@@ -58,7 +56,7 @@ namespace ConvertProjectToCore3
         private void MenuItem_BeforeQueryStatus(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            
+
             var menuCommand = sender as OleMenuCommand;
             if (menuCommand != null)
             {
@@ -192,61 +190,106 @@ namespace ConvertProjectToCore3
             var propertyGroup = projectRoot.PropertyGroups.First();
             projectData.ProjectGuid = Guid.Parse(propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.ProjectGuid)?.Value.ToString());
             projectData.ProjectTypeGuids = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.ProjectTypeGuids)?.Value.ToString();
-            projectData.AssemblyName = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.AssemblyName)?.Value.ToString();
-            projectData.OutputType = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.OutputType)?.Value.ToString();
-            projectData.ProjectReferences = projectRoot.Items.Where(x => x.ItemType.Equals(Constants.ProjectReference)).Select(r => r.Include).ToList();
-            projectData.Resources = projectRoot.Items.Where(x => x.ItemType.Equals(Constants.Resource)).Select(r => r.Include).ToList();
+            //projectData.AssemblyName = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.AssemblyName)?.Value.ToString();
+            //projectData.OutputType = propertyGroup.Properties.FirstOrDefault(x => x.Name == Constants.OutputType)?.Value.ToString();
             return projectData;
         }
 
         void DeleteCSProjContents(ProjectRootElement projectRoot)
         {
             projectRoot.ToolsVersion = null;
-            projectRoot.RemoveAllChildren();
+            RemoveImports(projectRoot);
+            RemoveProperties(projectRoot);
+            //await RemoveReferences(projectRoot);
+            RemoveItems(projectRoot);
+        }
+
+        void RemoveImports(ProjectRootElement root)
+        {
+            foreach (var import in root.Imports)
+            {
+                root.RemoveChild(import);
+            }
+        }
+
+        //async Task RemoveReferences(ProjectRootElement root)
+        //{
+        //    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        //    var frameworkMultiTargeting = await ServiceProvider.GetServiceAsync(typeof(SVsFrameworkMultiTargeting)) as IVsFrameworkMultiTargeting;
+
+        //    foreach (var itemGroup in root.ItemGroups)
+        //    {
+        //        foreach (var item in itemGroup.Items)
+        //        {
+        //            if (item.ElementName == Constants.Reference)
+        //            {
+        //                bool isFrameworkReference = false;
+        //                frameworkMultiTargeting.IsReferenceableInTargetFx(item.Include, Constants.NetFramework, out isFrameworkReference);
+
+        //                if (isFrameworkReference)
+        //                    itemGroup.RemoveChild(item);
+        //            }
+        //        }
+
+        //        if (itemGroup.Items.Count == 0)
+        //        {
+        //            root.RemoveChild(itemGroup);
+        //        }
+        //    }
+        //}
+
+        void RemoveItems(ProjectRootElement root)
+        {
+            foreach (var itemGroup in root.ItemGroups)
+            {
+                foreach (var item in itemGroup.Items)
+                {
+                    if (Constants.ItemTypesNotNeeded.Contains(item.ElementName))
+                    {
+                        itemGroup.RemoveChild(item);
+                    }
+                }
+
+                if (itemGroup.Items.Count == 0)
+                {
+                    root.RemoveChild(itemGroup);
+                }
+            }
+        }
+
+        static void RemoveProperties(ProjectRootElement root)
+        {
+            foreach (var propGroup in root.PropertyGroups)
+            {
+                foreach (var property in propGroup.Properties)
+                {
+                    if (Constants.PropertiesNotNeeded.Contains(property.Name))
+                    {
+                        propGroup.RemoveChild(property);
+                    }
+                }
+            }
         }
 
         void UpdateCSProjContents(ProjectRootElement projectRoot, ProjectData projectData)
         {
             projectRoot.Sdk = Constants.Sdk;
+            var propertyGroup = projectRoot.PropertyGroups.First();
 
-            ProjectPropertyGroupElement newPropertyGroup = projectRoot.AddPropertyGroup();
+            propertyGroup.AddProperty(Constants.TargetFramework, Constants.NetCoreApp3);
 
-            if (!string.IsNullOrWhiteSpace(projectData.OutputType))
-                newPropertyGroup.AddProperty(Constants.OutputType, projectData.OutputType);
-
-            newPropertyGroup.AddProperty(Constants.TargetFramework, Constants.NetCoreApp3);
-
-            //TODO: check to see if the project type is WPF or WinForms
-            newPropertyGroup.AddProperty(Constants.UseWPF, Constants.True);
+            //TODO: check to see if the project type is WPF or WinForms.
+            propertyGroup.AddProperty(Constants.UseWPF, Constants.True);
 
             if (!string.IsNullOrWhiteSpace(projectData.AssemblyVersion))
-                newPropertyGroup.AddProperty(Constants.Version, projectData.AssemblyVersion);
-
-            newPropertyGroup.AddProperty(Constants.AssemblyName, projectData.AssemblyName);
-
-            if (projectData.ProjectReferences.Count() > 0)
-            {
-                ProjectItemGroupElement projectRefItemGroup = projectRoot.AddItemGroup();
-                foreach (var projRef in projectData.ProjectReferences)
-                {
-                    projectRefItemGroup.AddItem(Constants.ProjectReference, projRef);
-                }
-            }
-
-            if (projectData.Resources.Count() > 0)
-            {
-                ProjectItemGroupElement resourceItemGroup = projectRoot.AddItemGroup();
-                foreach (var resource in projectData.Resources)
-                {
-                    resourceItemGroup.AddItem(Constants.Resource, resource);
-                }
-            }
+                propertyGroup.AddProperty(Constants.Version, projectData.AssemblyVersion);
 
             UpdateNuGetPackageReferences(projectRoot, projectData);
         }
 
         void UpdateNuGetPackageReferences(ProjectRootElement projectRoot, ProjectData projectData)
         {
+            //TODO: only use the top-level pacakages, not all packages
             var packageConfigFilePath = Path.Combine(projectData.FilePath, Constants.NuGetPackagesConfigFileName);
             if (File.Exists(packageConfigFilePath))
             {
