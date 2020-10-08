@@ -7,7 +7,7 @@ jobs:
     steps:
     - name: Hello world action step
       id: hello
-      uses: brianlagunas/sponsor-action@v1.0
+      uses: brianlagunas/sponsor-action@1.0
       with:
         who-to-greet: 'Brian Lagunas'
     # Use the output from the `hello` step
