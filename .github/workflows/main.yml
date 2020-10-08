@@ -8,5 +8,3 @@ jobs:
     - name: Add sponsor labels
       id: sponsors
       uses: brianlagunas/sponsor-action@v0.5
-      with:
-        maintainers: 'brianlagunas,dansiegel'
