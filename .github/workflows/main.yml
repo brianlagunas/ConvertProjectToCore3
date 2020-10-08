@@ -3,11 +3,11 @@ on: [push]
 jobs:
   hello_world_job:
     runs-on: ubuntu-latest
-    name: A job to say hello
+    name: Add Sponsor Labels
     steps:
-    - name: Add sponsor labels
-      id: sponsors
-      uses: brianlagunas/sponsor-action@v0.11
+    - name: sponsor labels
+      id: sponsors-labels
+      uses: brianlagunas/sponsor-action@v0.12
       with:
         maintainers: 'brianlagunas,dansiegel'
         github_token: ${{ secrets.GITHUB_TOKEN }}
