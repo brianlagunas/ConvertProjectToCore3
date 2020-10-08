@@ -5,9 +5,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Add Sponsor Labels
     steps:
-    - name: sponsor labels
+    - name: Add Sponsor Labels
       id: sponsors-labels
-      uses: brianlagunas/sponsor-action@v0.16
+      uses: brianlagunas/sponsor-action@v0.17
       with:
         maintainers: 'brianlagunas,dansiegel'
         github_token: ${{ secrets.GITHUB_TOKEN }}
