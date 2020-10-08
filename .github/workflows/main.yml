@@ -5,11 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     name: A job to say hello
     steps:
-    - name: Hello world action step
-      id: hello
-      uses: brianlagunas/sponsor-action@v0.1
+    - name: Add sponsor labels
+      id: sponsors
+      uses: brianlagunas/sponsor-action@v0.2
       with:
-        who-to-greet: 'Brian Lagunas'
-    # Use the output from the `hello` step
-    - name: Get the output time
-      run: echo "This worked at ${{ steps.hello.outputs.time }}"
+        maintainers: 'brianlagunas,dansiegel'
