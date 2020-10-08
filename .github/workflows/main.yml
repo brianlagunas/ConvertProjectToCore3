@@ -7,6 +7,6 @@ jobs:
     steps:
     - name: Add sponsor labels
       id: sponsors
-      uses: brianlagunas/sponsor-action@v0.8
+      uses: brianlagunas/sponsor-action@v0.9
       with:
         maintainers: 'brianlagunas,dansiegel'
