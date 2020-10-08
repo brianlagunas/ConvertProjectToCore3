@@ -1,6 +1,6 @@
 on: 
   issues:
-    types: [opened, reopen]
+    types: [opened, reopened]
 
 jobs:
   hello_world_job:
@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Add Sponsor Labels
       id: sponsors-labels
-      uses: brianlagunas/sponsor-action@v0
+      uses: brianlagunas/sponsor-action@v0.19
       with:
         maintainers: 'brianlagunas,dansiegel'
         github_token: ${{ secrets.GITHUB_TOKEN }}
