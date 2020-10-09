@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Add Sponsor Labels
       id: sponsors-labels
-      uses: brianlagunas/sponsor-action@v0.24
+      uses: brianlagunas/sponsor-action@v0.25
       with:
         maintainers: 'brianlagunas,dansiegel'
         github_token: ${{ secrets.GITHUB_TOKEN }}
